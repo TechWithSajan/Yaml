@@ -1,0 +1,286 @@
+# Important: Read BCAT documentation for configuration help.
+description: vEPG - SRIOV-VLAN with HOT ResourceGroups.
+bcat_config_version: 4
+Mandatory Input Parameters:
+  # Below are the mandatory parameters that must be given for vEPG vnf to be deployed.
+  CEE/OpenStack Credentials:
+    Keystone Authentication URL: &auth_url https://openstack-int.corp.cellularatsea.com:5000/v3
+    Tenant: &tenant admin
+    Username: &user admin
+    Password: &password "w2pvHlj4VmwaGyF9XyYYmv1Z7lUkBQOsRdGG2Lkw"
+  vEPG Images:
+    EPG VRP Image: &epg_vrp_image
+      name: epg_vrp_cxp9026845_28r178yk1
+    EPG VSFO Image: &epg_vsfo_image
+      name: epg_vsfo_cxp9026845_28r178yk1
+  Availability Zones:
+    Zone 1:
+      name: nova
+  vEPG Dimensioning:
+    User Plane VM Count: &epg_vsfo_pp_count 2
+    Control Plane VM Count: &epg_vsfo_cp_count 2
+cee:
+  auth_url: *auth_url
+  create_bgw_ports: false
+  password: *password
+  tenant: *tenant
+  user: *user
+  port_security_enabled: false
+cloud:
+  openstack_version: victoria
+  target_cloud_system: cee
+affinity_rules:
+  zone1_az_affinity_group1:
+    policy: anti-affinity
+    vnfcs:
+    - instance_id: [1, 2]
+      vnfc: epg_vsfo_pp
+  zone2_az_affinity_group2:
+    policy: anti-affinity
+    vnfcs:
+    - instance_id: [1, 2]
+      vnfc: epg_vsfo_cp
+  zone3_az_affinity_group3:
+    policy: anti-affinity
+    vnfcs:
+    - instance_id: [1, 2]
+      vnfc: epg_vRPs
+zones:
+  zone1:
+    compute_hosts: [bpcompute1.corp.cellularatsea.com]
+    vnfcs:
+    - instance_id: [1]
+      vnfc: epg_vRPs
+    name: nova:bpcompute1.corp.cellularatsea.com  
+  zone2:
+    compute_hosts: [bpcompute2.corp.cellularatsea.com]
+    vnfcs:
+    - instance_id: [2]
+      vnfc: epg_vRPs
+    name: nova:bpcompute2.corp.cellularatsea.com
+  zone3:
+    compute_hosts: [bpcompute3.corp.cellularatsea.com]
+    vnfcs:
+    - instance_id: [1]
+      vnfc: epg_vsfo_cp
+    name: nova:bpcompute3.corp.cellularatsea.com
+  zone4:
+    compute_hosts: [bpcompute4.corp.cellularatsea.com]
+    vnfcs:
+    - instance_id: [2]
+      vnfc: epg_vsfo_cp
+    name: nova:bpcompute4.corp.cellularatsea.com
+  zone5:
+    compute_hosts: [bpcompute5.corp.cellularatsea.com]
+    vnfcs:
+    - instance_id: [1]
+      vnfc: epg_vsfo_pp
+    name: nova:bpcompute5.corp.cellularatsea.com
+  zone6:
+    compute_hosts: [bpcompute6.corp.cellularatsea.com]
+    vnfcs:
+    - instance_id: [2]
+      vnfc: epg_vsfo_pp
+    name: nova:bpcompute6.corp.cellularatsea.com
+flavors:
+  epg_vsfo_pp_flavor:
+    name: vepg_up_vsfo_16vcpu_24576MBmem_40GBdisk
+    tag: flavor
+    vcpus: 16
+    mem: 24576
+    vcpus_frwd: 8
+    disk: 40
+    meta:
+      "hw:cpu_policy": "dedicated"
+      "hw:mem_page_size": "1048576"
+      "hw:watchdog_action": "reset"
+      "hw:cpu_sockets": "1"
+  epg_vsfo_cp_flavor:
+    name: vepg_cp_vsfo_16vcpu_24576MBmem_40GBdisk
+    tag: flavor
+    vcpus: 16
+    mem: 24576
+    disk: 40
+    vcpus_frwd: 4
+    meta:
+      "hw:cpu_policy": "dedicated"
+      "hw:mem_page_size": "1048576"
+      "hw:watchdog_action": "reset"
+      "hw:cpu_sockets": "1"
+  epg_vrp_flavor:
+    name: vepg_rp_4vcpu_24576MBmem_40GBdisk
+    tag: flavor
+    vcpus: 4
+    mem: 24576
+    disk: 40
+    meta:
+      "hw:cpu_policy": "dedicated"
+      "hw:mem_page_size": "1048576"
+      "hw:watchdog_action": "reset"
+      "hw:cpu_sockets": "1"
+hotgen:
+  # tags of the objs for example networks, if not included in the hotgen will be considered as perdefined.
+  enable_prefix: true
+  files:
+  - include:
+    - {tag: epg_vrp}
+    - {tag: epg_vsfo_pp_rg}
+    - {tag: epg_vsfo_cp_rg}
+    - {tag: networks}
+    name: epg_sriov_vlan_resourcegroups
+  format: hotpkg
+  use_legacy_resource_id_format: true
+images:
+  image_vrp:
+    <<: *epg_vrp_image
+  image_vsfo:
+    <<: *epg_vsfo_image
+networks:
+  # predefined net: "exisiting" tag is not included in hotgen configuration.
+  #MGMT-UP: {cidr: 10.216.5.124/29, segmentation_id: 3683, name: VN_vEPG_MGMT, tag: epg_vrp}
+  VN_vEPG_MGMT:
+    name: VN_vEPG_MGMT
+    segments:
+      [{type: vlan, segmentation_id: 1421, l2gw_id: [cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], physical_network: PHYDGW},{type: vxlan, physical_network: default}]
+    cidr: 172.19.214.248/29
+    tag: networks
+  om_cn:
+    name: om_cn
+    routing_domain: om_cn
+    segments:
+      [{type: vlan, segmentation_id: [1480, 1481], l2gw_id: [cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], physical_network: PHYDGW}, {type: vxlan, physical_network: default}]
+    tag: networks
+    cidr: [172.19.214.176/29,172.19.215.176/29]
+  sig_cn:
+    name: sig_cn
+    routing_domain: sig_cn
+    segments:
+      [{type: vlan, segmentation_id: [1470, 1471], l2gw_id: [cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], physical_network: PHYDGW}, {type: vxlan, physical_network: default}]
+    tag: networks
+    cidr: [172.19.214.200/29,172.19.215.200/29]
+  epg_VSFO-UP_EXT-SRIOV-Media-L-P1:
+    name: epg_VSFO-UP_EXT-SRIOV-Media-L-P1
+    cidr: [172.19.214.208/30,172.19.214.216/30]
+    segments:
+      [{physical_network: BPTCEE1-PHYL, l2gw_id: [3dea6336-3262-415c-a0c8-03f14488406b,cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], segmentation_id: [1474, 1472], type: vlan}, {type: vxlan, physical_network: default}]
+    tag: networks
+  epg_VSFO-UP_EXT-SRIOV-Media-R-P2:
+    name: epg_VSFO-UP_EXT-SRIOV-Media-R-P2
+    cidr: [172.19.215.208/30,172.19.215.216/30]
+    segments:
+      [{physical_network: BPTCEE1-PHYR, l2gw_id: [39d093fb-6961-46c8-b049-789d9a6e6c59,cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], segmentation_id: [1475, 1473], type: vlan}, {type: vxlan, physical_network: default}]
+    tag: networks
+  epg_VSFO-UP_EXT-SRIOV-RAN-L-P3:
+    name: epg_VSFO-UP_EXT-SRIOV-RAN-L-P3
+    cidr: [172.19.214.168/30,172.19.214.184/30]
+    segments:
+      [{physical_network: BPTCEE1-PHYL, l2gw_id: [3dea6336-3262-415c-a0c8-03f14488406b,cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], segmentation_id: [1478, 1482], type: vlan}, {type: vxlan, physical_network: default}]
+    tag: networks
+  epg_VSFO-UP_EXT-SRIOV-RAN-R-P4:
+    name: epg_VSFO-UP_EXT-SRIOV-RAN-R-P4
+    cidr: [172.19.215.168/30,172.19.215.184/30]
+    segments:
+      [{physical_network: BPTCEE1-PHYR, l2gw_id: [39d093fb-6961-46c8-b049-789d9a6e6c59,cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], segmentation_id: [1479, 1483], type: vlan}, {type: vxlan, physical_network: default}]
+    tag: networks
+  epg_VSFO-UP_EXT-SRIOV-IAC-L-P5:
+    name: epg_VSFO-UP_EXT-SRIOV-IAC-L-P5
+    cidr: [172.19.214.160/30,172.19.214.192/30]
+    segments:
+      [{physical_network: BPTCEE1-PHYL, l2gw_id: [3dea6336-3262-415c-a0c8-03f14488406b,cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], segmentation_id: [1476, 1484], type: vlan}, {type: vxlan, physical_network: default}]
+    tag: networks
+  epg_VSFO-UP_EXT-SRIOV-IAC-R-P6:
+    name: epg_VSFO-UP_EXT-SRIOV-IAC-R-P6
+    cidr: [172.19.215.160/30,172.19.215.192/30]
+    segments:
+      [{physical_network: BPTCEE1-PHYR, l2gw_id: [39d093fb-6961-46c8-b049-789d9a6e6c59,cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], segmentation_id: [1477,1485], type: vlan}, {type: vxlan, physical_network: default}]
+    tag: networks
+  epg_VSFO_UP_EXT: {cidr: [172.100.1.0/24,172.100.2.0/24], name: epg_VSFO_UP_EXT,  tag: networks}
+  epg_VSFO_CP_EXT: {cidr: [172.100.11.0/24,172.100.12.0/24], name: epg_VSFO_CP_EXT,  tag: networks}
+
+  epg_VFAB-1:
+    name: epg_VFAB-1
+    segments:
+      [{type: vlan, l2gw_id: [3dea6336-3262-415c-a0c8-03f14488406b,cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], segmentation_id: 250, physical_network: BPTCEE1-PHYL}, {type: vxlan, physical_network: default}]
+    cidr: 126.6.21.0/24
+    tag: networks
+
+  epg_VFAB-2:
+    name: epg_VFAB-2
+    segments:
+      [{type: vlan, l2gw_id: [39d093fb-6961-46c8-b049-789d9a6e6c59,cf1e73b1-e3ce-40a8-923b-bafcb35bdcf2], segmentation_id: 251,  physical_network: BPTCEE1-PHYR}, {type: vxlan, physical_network: default}]
+    cidr: 126.6.22.0/24
+    tag: networks
+
+vnfs:
+  vEPG3:
+    type: epg
+    version: '3.34'
+    vnfcs:
+      epg_vsfo_cp:
+        external_ports:
+        - network: epg_VSFO_CP_EXT
+        #- network: om_cn
+          type: virtio
+          vlan_trunking:
+          - {network: om_cn}
+          - {network: sig_cn}
+        # - network: om_cn_2
+          # type: virtio
+        #- network: sig_cn
+          # type: virtio
+        # - network: li_cn
+          # type: virtio
+        # - network: sig_cn_2
+          # type: virtio
+        flavor: epg_vsfo_cp_flavor
+        image: image_vsfo
+        tag: epg_vsfo_cp_rg
+        slots: [1,2]
+        type: vsfo
+        vfab_ports:
+        - {network: epg_VFAB-1, type: virtio}
+        - {network: epg_VFAB-2, type: virtio}
+        role: cp
+        default_number_of_instances: *epg_vsfo_cp_count
+        min_number_of_instances: 1
+      epg_vRPs:
+        external_ports:
+        - {network: VN_vEPG_MGMT}
+        flavor: epg_vrp_flavor
+        image: image_vrp
+        slots: [31, 32]
+        tag: epg_vrp
+        type: vrp
+
+      epg_vsfo_pp:
+  # defining a resourcegroup is similar to that of a vsfo VM.
+  # one resource shall be created for a unique (type, role) combination.
+  # following is the PP resourcegroups (VSFO-PP)
+        external_ports:
+        #- network: epg_VSFO_UP_EXT
+          #pgrp: 1
+        - {network: epg_VSFO-UP_EXT-SRIOV-Media-L-P1, type: sriov, pgrp: 2}
+        - {network: epg_VSFO-UP_EXT-SRIOV-Media-R-P2, type: sriov, pgrp: 2}
+        - {network: epg_VSFO-UP_EXT-SRIOV-RAN-L-P3, type: sriov, pgrp: 2}
+        - {network: epg_VSFO-UP_EXT-SRIOV-RAN-R-P4, type: sriov, pgrp: 2}
+        - {network: epg_VSFO-UP_EXT-SRIOV-IAC-L-P5, type: sriov, pgrp: 2}
+        - {network: epg_VSFO-UP_EXT-SRIOV-IAC-R-P6, type: sriov, pgrp: 2}
+        # - {network: epg_VSFO-PP_EXT-SRIOV-3, type: sriov, pgrp: 1}
+        # - {network: epg_VSFO-PP_EXT-SRIOV-4, type: sriov, pgrp: 1}
+        # - {network: epg_VSFO-PP_EXT-SRIOV-5, type: sriov, pgrp: 1}
+        # - {network: epg_VSFO-PP_EXT-SRIOV-6, type: sriov, pgrp: 1}
+        # - {network: epg_VSFO-PP_EXT-SRIOV-7, type: sriov, pgrp: 1}
+        flavor: epg_vsfo_pp_flavor
+        ifab_pgrp: 3
+        image: image_vsfo
+        tag: epg_vsfo_pp_rg
+        # intial count input for resourcegroup.
+        slots: [15,16]
+        type: vsfo
+        vfab_ports:
+        - {network: epg_VFAB-1, type: sriov, pgrp: 1}
+        - {network: epg_VFAB-2, type: sriov, pgrp: 1}
+        role: pp
+        default_number_of_instances: *epg_vsfo_pp_count
+        min_number_of_instances: 1
+
