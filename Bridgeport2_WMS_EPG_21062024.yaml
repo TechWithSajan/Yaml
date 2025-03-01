@@ -73,4 +73,17 @@ affinity_rules:
         role: pp
         default_number_of_instances: *epg_vsfo_pp_count
         min_number_of_instances: 1
+        epg_vsfo_cp_flavor:
+    name: vepg_cp_vsfo_16vcpu_24576MBmem_40GBdisk
+    tag: flavor
+    vcpus: 16
+    mem: 24576
+    disk: 80
+    vcpus_frwd: 4
+    meta:
+      "hw:cpu_policy": "dedicated"
+      "hw:mem_page_size": "1048576"
+      "hw:watchdog_action": "reset"
+      "hw:cpu_sockets": "1"
+
 
